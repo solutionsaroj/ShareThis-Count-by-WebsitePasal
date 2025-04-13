@@ -1,47 +1,46 @@
 <?php
 /*
 Plugin Name: ShareThis Count by WebsitePasal
-Description: Multiplies ShareThis counts and formats them as K/M
-Version: 1.6
+Description: Multiplies ShareThis share counts and formats them as K/M style numbers.
+Version: 1.7
 Author: Solutionsaroj
 Author URI: https://sarojkhanal.com
 Text Domain: sharethis-count-by-websitepasal
-License: GPL-2.0-or-later
+License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 // Admin settings page
 add_action('admin_menu', function() {
-    add_options_page(
-        __('ShareThis Count Settings', 'sharethis-count-by-websitepasal'),
-        __('ShareThis Count', 'sharethis-count-by-websitepasal'),
-        'manage_options',
-        'sharethis-count',
-        'stc_settings_page'
+    add_options_page('ShareThis Count Settings', 'ShareThis Count', 'manage_options', 'sharethis-count', 'stc_settings_page');
+});
+
+// Register the setting with sanitization
+add_action('admin_init', function() {
+    register_setting(
+        'stc_settings_group',      // Option group
+        'stc_multiplier',          // Option name
+        'stc_sanitize_multiplier'  // Sanitization callback
     );
 });
 
-// Register the multiplier setting
-add_action('admin_init', function() {
-    register_setting('stc_settings_group', 'stc_multiplier');
-});
+// Sanitization callback
+function stc_sanitize_multiplier($input) {
+    return floatval($input); // Ensures it's a float
+}
 
 // Backend settings page content
 function stc_settings_page() {
     ?>
     <div class="wrap">
-        <h1><?php esc_html_e('ShareThis Count Settings', 'sharethis-count-by-websitepasal'); ?></h1>
+        <h1>ShareThis Count Settings</h1>
         <form method="post" action="options.php">
             <?php settings_fields('stc_settings_group'); ?>
             <?php do_settings_sections('stc_settings_group'); ?>
             <table class="form-table">
                 <tr valign="top">
-                    <th scope="row">
-                        <?php esc_html_e('Share Count Multiplier', 'sharethis-count-by-websitepasal'); ?>
-                    </th>
-                    <td>
-                        <input type="number" step="0.1" name="stc_multiplier" value="<?php echo esc_attr(get_option('stc_multiplier', 10)); ?>" />
-                    </td>
+                    <th scope="row">Share Count Multiplier</th>
+                    <td><input type="number" name="stc_multiplier" value="<?php echo esc_attr(get_option('stc_multiplier', 10)); ?>" step="0.1" /></td>
                 </tr>
             </table>
             <?php submit_button(); ?>
@@ -50,14 +49,14 @@ function stc_settings_page() {
     <?php
 }
 
-// Hide original share count until modified
+// Hide original share count until updated
 add_action('wp_head', function() {
     echo '<style>.st-label { visibility: hidden; }</style>';
 });
 
-// Inject JavaScript to update frontend counts
+// Inject JS to modify share counts
 add_action('wp_footer', function() {
-    $multiplier = get_option('stc_multiplier', 10);
+    $multiplier = get_option('stc_multiplier', 10); // Default multiplier
     ?>
     <script>
     (function($) {
@@ -76,15 +75,14 @@ add_action('wp_footer', function() {
 
         function updateShareCounts() {
             $('span.st-label').each(function() {
-                var el = $(this);
+                let el = $(this);
                 if (el.attr('data-modified') === 'true') return;
 
-                var originalText = el.text();
-                var original = parseFormattedNumber(originalText);
+                let originalText = el.text();
+                let original = parseFormattedNumber(originalText);
                 if (!isNaN(original)) {
-                    var multiplied = original * <?php echo floatval($multiplier); ?>;
-                    el.text(formatNumber(multiplied));
-                    el.css('visibility', 'visible');
+                    let multiplied = original * <?php echo esc_js($multiplier); ?>;
+                    el.text(formatNumber(multiplied)).css('visibility', 'visible');
                     el.attr('data-modified', 'true');
                 }
             });
